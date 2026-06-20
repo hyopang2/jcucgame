@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>제주에서 살아남기 — 자원순환 어드벤처</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: #1565A0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  #game-root {
+    width: 100%;
+    max-width: 420px;
+    min-height: 100vh;
+    background: #1C7AB8;
+    color: #E8F4F0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  @media (min-height: 600px) {
+    #game-root { min-height: 600px; border-radius: 20px; }
+  }
+
+  .wave-bg {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 180px;
+    background: linear-gradient(180deg, transparent 0%, #2389C9 40%, #156AA3 100%);
+    z-index: 0;
+  }
+
+  .wave-svg {
+    position: absolute;
+    bottom: 90px; left: 0; right: 0;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  .screen {
+    position: relative;
+    z-index: 2;
+    display: none;
+  }
+  .screen.active { display: flex; flex-direction: column; min-height: 600px; }
+
+  /* ── INTRO ── */
+  #intro {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 44px 28px 48px;
+    gap: 0;
+  }
+
+  .intro-island {
+    font-size: 62px;
+    margin-bottom: 10px;
+    animation: float 3s ease-in-out infinite;
+    display: block;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .game-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #7EDDBB;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+
+  .game-subtitle {
+    font-size: 13px;
+    color: #8BBFCC;
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    background: rgba(126,221,187,0.15);
+    border: 1px solid rgba(126,221,187,0.3);
+    color: #7EDDBB;
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .story-box {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(126,221,187,0.2);
+    border-radius: 14px;
+    padding: 18px 20px;
+    font-size: 13.5px;
+    line-height: 1.85;
+    color: #C2DDE8;
+    margin-bottom: 30px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .story-box em {
+    color: #7EDDBB;
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background: #7EDDBB;
+    color: #0A3D5C;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.15s, background 0.15s;
+    letter-spacing: -0.2px;
+  }
+  .btn-primary:hover { background: #5ECAA5; transform: scale(1.03); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  /* ── HUD ── */
+  .hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid rgba(126,221,187,0.12);
+  }
+
+  .hud-progress {
+    font-size: 12px;
+    color: #8BBFCC;
+    font-weight: 500;
+  }
+
+  .hud-score {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #7EDDBB;
+  }
+
+  .timer-ring-wrap {
+    position: relative;
+    width: 46px;
+    height: 46px;
+  }
+
+  .timer-ring-wrap svg { transform: rotate(-90deg); }
+  .timer-track { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 3.5; }
+  .timer-bar {
+    fill: none;
+    stroke: #7EDDBB;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.9s linear, stroke 0.3s;
+  }
+
+  .timer-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #E8F4F0;
+  }
+
+  .progress-dots {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    padding: 12px 16px 4px;
+    flex-wrap: wrap;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.3s;
+  }
+  .dot.done { background: #7EDDBB; }
+  .dot.current { background: #FFD97D; }
+  .dot.fail { background: #F4827A; }
+
+  /* ── QUESTION ── */
+  .q-scene {
+    padding: 14px 22px 0;
+    text-align: center;
+  }
+
+  .scene-emoji { font-size: 42px; margin-bottom: 5px; display: block; }
+  .scene-emoji img { width: 56px; height: 56px; object-fit: contain; display: block; }
+
+  .scene-label {
+    font-size: 11px;
+    color: #8BBFCC;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+  }
+
+  .q-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: #E8F4F0;
+    line-height: 1.7;
+    padding: 0 4px;
+    margin-bottom: 16px;
+  }
+
+  .options-grid {
+    padding: 0 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .opt-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(126,221,187,0.22);
+    border-radius: 12px;
+    padding: 13px 15px;
+    color: #D4EDE8;
+    font-size: 13.5px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.55;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .opt-btn:hover:not(:disabled) {
+    background: rgba(126,221,187,0.14);
+    border-color: rgba(126,221,187,0.5);
+    transform: translateX(3px);
+  }
+
+  .opt-btn.correct {
+    background: rgba(94,202,165,0.22);
+    border-color: #5ECAA5;
+    color: #9EEBD2;
+  }
+
+  .opt-btn.wrong {
+    background: rgba(244,130,122,0.15);
+    border-color: #F4827A;
+    color: #F4A09A;
+  }
+
+  .opt-btn.reveal {
+    background: rgba(94,202,165,0.08);
+    border-color: rgba(94,202,165,0.3);
+    opacity: 0.7;
+  }
+
+  .opt-letter {
+    background: rgba(126,221,187,0.2);
+    color: #7EDDBB;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 22px;
+    text-align: center;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── FEEDBACK ── */
+  .feedback-panel {
+    margin: 0 16px 10px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.7;
+    display: none;
+  }
+
+  .feedback-panel.show { display: block; }
+
+  .feedback-panel.good {
+    background: rgba(94,202,165,0.14);
+    border: 1px solid rgba(94,202,165,0.38);
+    color: #9EEBD2;
+  }
+
+  .feedback-panel.bad {
+    background: rgba(244,130,122,0.12);
+    border: 1px solid rgba(244,130,122,0.32);
+    color: #F4A09A;
+  }
+
+  .feedback-panel.timeout {
+    background: rgba(255,217,125,0.1);
+    border: 1px solid rgba(255,217,125,0.28);
+    color: #FFD97D;
+  }
+
+  .feedback-head {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .next-btn {
+    display: none;
+    width: calc(100% - 32px);
+    margin: 0 16px 18px;
+    background: rgba(126,221,187,0.18);
+    border: 1.5px solid rgba(126,221,187,0.38);
+    border-radius: 10px;
+    color: #7EDDBB;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .next-btn.show { display: block; }
+  .next-btn:hover { background: rgba(126,221,187,0.28); }
+
+  /* ── RESULT ── */
+  #result {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 36px 24px 48px;
+  }
+
+  .result-icon { font-size: 68px; margin-bottom: 14px; display: block; }
+
+  .result-tier {
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    color: #8BBFCC;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .result-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #7EDDBB;
+    margin-bottom: 20px;
+    line-height: 1.3;
+  }
+
+  .score-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .score-num {
+    font-size: 56px;
+    font-weight: 700;
+    color: #FFD97D;
+    line-height: 1;
+  }
+
+  .score-label { font-size: 12px; color: #8BBFCC; margin-top: 5px; }
+
+  .star-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 22px;
+    font-size: 26px;
+  }
+
+  .result-msg {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(126,221,187,0.2);
+    border-radius: 14px;
+    padding: 18px 20px;
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: #C2DDE8;
+    margin-bottom: 20px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .result-msg strong { color: #7EDDBB; font-weight: 600; }
+
+  .log-list {
+    width: 100%;
+    margin-bottom: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 9px;
+    padding: 9px 14px;
+    font-size: 12.5px;
+    color: #9BB8C4;
+  }
+
+  .log-item .log-icon { font-size: 16px; flex-shrink: 0; }
+  .log-item.got { color: #9EEBD2; }
+  .log-item.lost { color: #F4A09A; }
+
+  .btn-restart {
+    background: transparent;
+    border: 1.5px solid rgba(126,221,187,0.38);
+    border-radius: 30px;
+    color: #7EDDBB;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 13px 34px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-restart:hover { background: rgba(126,221,187,0.12); }
+
+  .insta-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: linear-gradient(135deg, #FEDA77 0%, #DD2A7B 50%, #515BD4 100%);
+    border: none;
+    border-radius: 14px;
+    color: #FFFFFF;
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 14px 16px;
+    text-decoration: none;
+    margin-bottom: 14px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 14px rgba(221,42,123,0.25);
+  }
+  .insta-link:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(221,42,123,0.35); }
+  .insta-link:active { transform: translateY(0); }
+  .insta-link svg { flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="game-root">
+  <div class="wave-bg"></div>
+  <svg class="wave-svg" viewBox="0 0 420 80" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,40 C70,10 140,70 210,40 C280,10 350,70 420,40 L420,80 L0,80 Z" fill="#7EDDBB"/>
+  </svg>
+
+  <!-- INTRO -->
+  <div id="intro" class="screen active">
+    <span class="intro-island">🏝️</span>
+    <div class="game-title">제주에서 살아남기</div>
+    <div class="game-subtitle">자원순환 실천 어드벤처</div>
+    <div class="badge-row">
+      <span class="badge">⏱ 8초 제한</span>
+      <span class="badge">🌊 10가지 상황</span>
+      <span class="badge">♻️ 자원순환 점수</span>
+    </div>
+    <div class="story-box">
+      힐링을 위해 제주에서 한달살기를 시작한 당신!<br>
+      매일 크고 작은 선택의 순간이 찾아오고,<br>
+      <em>올바른 자원순환 선택</em>만이 당신을<br>
+      진정한 <em>제주 새활용 마스터</em>로 만들어 줍니다.<br><br>
+      각 상황마다 <em>8초</em> 안에 결정하세요!
+    </div>
+    <button class="btn-primary" onclick="startGame()">도전 시작 🌿</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" class="screen">
+    <div class="hud">
+      <div>
+        <div class="hud-progress" id="q-progress">상황 1 / 5</div>
+      </div>
+      <div class="hud-score">
+        <span>♻️</span>
+        <span id="score-hud">0</span>점
+      </div>
+      <div class="timer-ring-wrap">
+        <svg width="46" height="46" viewBox="0 0 46 46">
+          <circle class="timer-track" cx="23" cy="23" r="18"/>
+          <circle class="timer-bar" id="timer-bar" cx="23" cy="23" r="18"
+            stroke-dasharray="113.1" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-num" id="timer-num">8</div>
+      </div>
+    </div>
+
+    <div class="progress-dots" id="progress-dots">
+      <div class="dot current" id="dot-0"></div>
+      <div class="dot" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+      <div class="dot" id="dot-3"></div>
+      <div class="dot" id="dot-4"></div>
+      <div class="dot" id="dot-5"></div>
+      <div class="dot" id="dot-6"></div>
+      <div class="dot" id="dot-7"></div>
+      <div class="dot" id="dot-8"></div>
+      <div class="dot" id="dot-9"></div>
+    </div>
+
+    <div class="q-scene">
+      <span class="scene-emoji" id="scene-emoji" style="display:inline-flex;align-items:center;justify-content:center;">🌊</span>
+      <div class="scene-label" id="scene-label">상황</div>
+      <div class="q-text" id="q-text"></div>
+    </div>
+
+    <div class="options-grid" id="options-grid"></div>
+
+    <div class="feedback-panel" id="feedback-panel">
+      <div class="feedback-head" id="feedback-head"></div>
+      <div id="feedback-body"></div>
+    </div>
+
+    <button class="next-btn" id="next-btn" onclick="nextQuestion()">다음 상황으로 →</button>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result" class="screen">
+    <span class="result-icon" id="result-icon">🌟</span>
+    <div class="result-tier" id="result-tier">달성 등급</div>
+    <div class="result-title" id="result-title">제주 새활용 마스터</div>
+    <div class="score-display">
+      <div class="score-num" id="result-score">0</div>
+      <div class="score-label">자원순환 점수</div>
+    </div>
+    <div class="star-row" id="star-row"></div>
+    <div class="result-msg" id="result-msg"></div>
+    <div class="log-list" id="log-list"></div>
+    <a class="insta-link" href="https://www.instagram.com/juc_jejucity/" target="_blank" rel="noopener noreferrer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="20" height="20" rx="5" stroke="white" stroke-width="2"/>
+        <circle cx="12" cy="12" r="4.2" stroke="white" stroke-width="2"/>
+        <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+      </svg>
+      제주시새활용센터 인스타그램 바로가기
+    </a>
+    <button class="btn-restart" onclick="restartGame()">다시 도전하기 🔄</button>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    emoji: "IMG:data:image/png;base64,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",
+    label: "편의점에서",
+    text: "편의점에서 음료수를 샀어요. 다 마신 페트병, 어떻게 할까요?",
+    options: [
+      { text: "라벨을 떼고 내용물을 비운 다음 찌그러뜨려 투명 페트병 전용 분리배출함에 넣는다" },
+      { text: "라벨과 병뚜껑을 따로 떼어서 플라스틱 분리배출함에 버린다" },
+      { text: "라벨이 잘 떼어지지 않으니 그대로 붙인 채로 플라스틱 수거함에 넣는다" }
+    ],
+    correct: [0],
+    neutral: [1],
+    points: 10,
+    feedback_good: "좋아요! 제주도는 투명페트병 재활용률을 높이기 위해 투명페트병 전용수거함을 운영하고 있어요. 투명페트병은 의류, 가방 등으로 새활용 할 수 있는 고품질 플라스틱이므로 재활용률을 높이는 것이 중요합니다.",
+    feedback_neutral: "보통 페트병을 분리배출할 때, 뚜껑은 닫아서 배출합니다. 병뚜껑과 페트병의 재질이 달라 세척, 선별과정에서 분리되기도 하고, 뚜껑을 따로 버리면 크기가 작아 오히려 선별과정에서 누락될 수 있기 때문입니다.",
+    feedback_bad: "라벨제거와 세척이 분리배출의 핵심이에요! 특히 제주에서는 투명페트병 전용수거함을 운영하고 있어서, 투명페트병은 전용수거함에 넣어주세요.",
+    feedback_timeout: "시간초과! 라벨제거→세척→압착→전용수거함이 정답이었어요."
+  },
+  {
+    emoji: "🍶",
+    label: "텀블러, 바꿀까? 그대로 쓸까?",
+    text: "문득 평소에 들고다닌 텀블러가 너무 오래된 것 같아요. 텀블러를 바꿀까요, 말까요?",
+    options: [
+      { text: "위생문제, 중금속 문제가 우려된다. 새로 산다" },
+      { text: "마침 맘에 드는 디자인의 텀블러가 새로 나와서 이참에 바꾼다" },
+      { text: "그래도 일회용컵을 쓰는것보단 텀블러를 계속 쓰는게 나으니 그대로 쓴다" }
+    ],
+    correct: [2],
+    points: 10,
+    feedback_good: "탄소배출량을 생각해보면, 텀블러를 30회 이상 쓰게 되면 종이컵을 쓰는 것보다 탄소배출량을 줄이게 돼요. 텀블러를 애용해봅시다!",
+    feedback_bad_map: {
+      0: "스테인리스 재질 텀블러라 잘 씻어서 쓰면 괜찮아요. 중금속 배출문제도 걱정없어요. 우리가 냄비를 사서 거의 반영구적으로 쓰는것과 같다고 보면 돼요.",
+      1: "환경 보호를 위해 제로웨이스트 실천이 중요해요. 물욕을 꾹 참고 내 텀블러를 애착텀블러로 삼아 보아요."
+    },
+    feedback_timeout: "시간초과! 탄소배출량을 줄이기 위해 텀블러를 오래 쓰는게 중요해요. 제주시새활용센터에 비치된 텀블러세척기도 잘 활용해보세요."
+  },
+  {
+    emoji: "🧾",
+    label: "영수증은 어떻게?",
+    text: "매장 리뷰이벤트에 참여하기 위해 종이영수증을 받았어요. 이 영수증은 어떻게 버릴까요?",
+    options: [
+      { text: "종이류로 분리배출한다" },
+      { text: "일반쓰레기로 버린다" },
+      { text: "비닐류로 버린다" }
+    ],
+    correct: [1],
+    points: 10,
+    feedback_good: "정답! 감열지(영수증, 대기표)는 화학성분이 코팅되어있어 재활용이 되지 않아요. 일반쓰레기로 버려야 합니다. 환경을 위해서는 전자영수증 받기를 권장드려요.",
+    feedback_bad: "땡! 감열지(영수증, 대기표)는 화학성분이 코팅되어있어 재활용이 되지 않아요. 일반쓰레기로 버려야 합니다.",
+    feedback_timeout: "시간초과! 종이영수증은 일반쓰레기로 버려 주세요."
+  },
+  {
+    emoji: "🥛",
+    label: "우유를 마시고",
+    text: "집에서 우유를 마시고 난 후, 우유팩은 어떻게 버릴까요?",
+    options: [
+      { text: "깨끗이 씻고 말려서 상자박스, 폐지와 함께 묶어서 종이류로 분리배출한다" },
+      { text: "씻은 후, 우유팩끼리 모아 클린하우스의 우유팩 전용수거함에 버린다" },
+      { text: "두유를 마시고 남은 멸균팩과 함께 묶어서 버린다" }
+    ],
+    correct: [1],
+    points: 10,
+    feedback_good: "정답이에요! 우유팩은 휴지 등으로 재활용될 수 있어 우유팩끼리 모아 전용수거함에 버려주세요.",
+    feedback_bad_map: {
+      0: "우유팩은 일반 종이류와 혼입되면 재활용률을 떨어뜨려요. 우유팩 전용수거함으로 버려주세요.",
+      2: "멸균팩(테트라팩)은 내부가 알류미늄소재로 코팅이 되어있어 우유팩과는 별도로 분리배출해야 돼요. 멸균팩 전용수거함에 버리거나, 근처 한살림매장에서 운영하는 멸균팩 수거함에 버려주세요."
+    },
+    feedback_timeout: "시간초과! 우유팩은 잘 씻어서 종이류와 별도로 우유팩 전용수거함에 버리는 게 핵심이에요!"
+  },
+  {
+    emoji: "🧤",
+    label: "주방에서",
+    text: "설거지를 하다가 고무장갑이 찢어졌어요. 어떻게 버릴까요?",
+    options: [
+      { text: "비닐류로 분리배출한다" },
+      { text: "종량제봉투에 넣어서 일반쓰레기로 버린다" },
+      { text: "안 타는 쓰레기(불연성쓰레기)로 분리배출한다" }
+    ],
+    correct: [1],
+    points: 10,
+    feedback_good: "정답이에요! 고무장갑은 일반쓰레기로 버려주세요.",
+    feedback_bad: "대다수의 지자체에서 고무장갑을 일반쓰레기로 보고 있어요. 비닐류로 버리면 안 되고, 불에타는 쓰레기이므로 종량제봉투에 넣어 버려주세요.",
+    feedback_timeout: "시간초과! 종량제봉투에 넣어 일반쓰레기로 버리기가 정답이었어요."
+  },
+  {
+    emoji: "🪥",
+    label: "양치질을 하다가",
+    text: "다 쓴 플라스틱 칫솔을 바꾸려 해요. 플라스틱 칫솔은 어떻게 버릴까요?",
+    options: [
+      { text: "일반쓰레기로 버린다" },
+      { text: "플라스틱이니 플라스틱류로 분리배출한다" },
+      { text: "칫솔모만 떼어서 플라스틱류로 분리배출한다" }
+    ],
+    correct: [0],
+    points: 10,
+    feedback_good: "정답! 플라스틱 칫솔은 여러 소재가 결합된 복합 재질이라 재활용이 되지 않아요. 일반쓰레기로 버려 주세요.",
+    feedback_bad: "땡! 플라스틱 칫솔은 플라스틱으로 재활용이 되지 않아요.",
+    feedback_timeout: "시간초과! 다 쓴 플라스틱 칫솔은 일반쓰레기로 버려 주세요."
+  },
+  {
+    emoji: "👕",
+    label: "옷장을 열고",
+    text: "옷장을 열어보니 잘 안 입는 옷들이 보여요. 옷장 자리만 차지하는 이 옷들을 어떻게 할까요?",
+    options: [
+      { text: "클린하우스의 헌옷수거함에 버린다" },
+      { text: "실크스크린, 스탬프, 자수기법 등으로 리폼해서 입는다" },
+      { text: "옷을 나눔하거나 기부한다" }
+    ],
+    correct: [1, 2],
+    points: 10,
+    feedback_good: "좋아요! 의류쓰레기가 심각한 환경문제를 유발하고 있는 지금, 공유옷장이나 아름다운 가게에 기부하거나 직접 리폼해서 오래 입는 습관을 길러보아요.",
+    feedback_bad: "헌옷수거함에 버려지는 옷들의 약 87%가 소각되거나 매립되는게 현실이에요.",
+    feedback_timeout: "시간초과! 손이 잘 가지 않는 옷을 리폼하거나 기부해보세요."
+  },
+  {
+    emoji: "🔋",
+    label: "건전지 잔량 테스트",
+    text: "집에 굴러다니는 건전지 테스터기로 잔량을 확인해보려해요. 테스터기에 나타난 숫자를 봤을 때, 써도 되는 건전지는?",
+    options: [
+      { text: "1.5v" },
+      { text: "1.0v" },
+      { text: "0.5v" }
+    ],
+    correct: [0],
+    points: 10,
+    feedback_good: "정답! 보통 1.3~1.5v일 경우 용량이 충분히 남은 상태에요.",
+    feedback_bad: "방전된 상태라 교체가 필요해요.",
+    feedback_timeout: "시간초과! 1.5v면 정상이에요."
+  },
+  {
+    emoji: "☂️",
+    label: "제주의 비바람 속에서",
+    text: "비가 가로로 내리는 제주날씨에 우산이 그만 부러졌어요. 고장난 우산을 어떻게할까요?",
+    options: [
+      { text: "어쩔수없지. 대충 버리고 새로 산다" },
+      { text: "우산 살과 천도 재활용할 수있을 것 같다. 유튜브 영상을 보며 일일이 해체해서 소재별로 분리배출한다" },
+      { text: "근처 우산 수리점을 찾아가 우산을 고쳐 쓴다" }
+    ],
+    correct: [1, 2],
+    points: 10,
+    feedback_good_map: {
+      1: "우산 천은 파우치 등으로 새활용할 수 있고, 우산 살도 활용 가치가 높은 소재이므로 시간이 걸리더라도 해체해서 분리배출 하는 것도 좋은 방법입니다.",
+      2: "고장난 우산을 그냥 버리지 말고 수리점에 가서 고쳐보세요. 제주시새활용센터의 \"수리수선지도\"를 참고하거나, \"수리수리다수리마을\"의 \"리페어카페\"에서 고장난 우산을 고쳐 볼 수 있어요."
+    },
+    feedback_bad: "새 물건을 사기 전에 오래 쓸 수 있는 방법을 고민해보세요.",
+    feedback_timeout: "시간초과! 우산을 그냥 버리기 전에 다시 고치거나 분리배출 하는 방법을 고려해보세요."
+  },
+  {
+    emoji: "🔧",
+    label: "수리할 권리 (Right to Repair)",
+    text: "사용 중인 스마트폰 배터리 성능이 크게 떨어졌어요. 배터리 자체 가격은 3만 원 정도인데, 제조사가 배터리를 본체에 강하게 접착해 일반적인 수리가 어렵게 설계되었어요. 이 상황에서 수리권의 관점과 가장 가까운 생각은?",
+    options: [
+      { text: "최신 기기로 바꾸는 것이 자연스러운 소비다" },
+      { text: "제조사는 소비자가 배터리를 쉽게 교체하거나 수리할 수 있도록 설계할 책임이 있다" },
+      { text: "제품 설계는 제조사 자유이므로 소비자는 선택만 하면 된다" }
+    ],
+    correct: [1],
+    points: 10,
+    feedback_good: "정답! 수리권은 단순히 \"고쳐 쓰자\"가 아니에요. 소비자가 제품을 오래 사용할 수 있도록 제조사가 부품, 설명서, 수리 가능 구조를 제공해야 한다는 개념이에요. 배터리처럼 수명이 짧은 부품을 교체하기 어렵게 만드는 설계는 전자폐기물 증가의 원인이 되기도 해요.",
+    feedback_bad: "아쉬워요. 수리권은 단순히 \"고쳐 쓰자\"가 아니에요. 소비자가 제품을 오래 사용할 수 있도록 제조사가 부품, 설명서, 수리 가능 구조를 제공해야 한다는 개념이에요. 배터리처럼 수명이 짧은 부품을 교체하기 어렵게 만드는 설계는 전자폐기물 증가의 원인이 되기도 해요.",
+    feedback_timeout: "시간초과! 수리할 권리 관점에서 보면, 제조사는 소비자가 배터리를 쉽게 교체하거나 수리할 수 있도록 설계할 책임이 있어요."
+  }
+];
+
+const ENDINGS = [
+  {
+    min: 0, max: 39,
+    icon: "🌱",
+    tier: "입문 단계",
+    title: "새활용 입문자",
+    stars: "⭐",
+    msg: `아직 자원순환의 세계에 막 발을 들인 단계예요.<br><strong>괜찮아요!</strong> 제주에서 보낸 시간이 좋은 출발점이 됐을 거예요. 라벨 떼기, 세척하기, 재질 분리하기 — 작은 습관부터 시작해보세요. 제주 바다가 응원합니다! 🌊`
+  },
+  {
+    min: 40, max: 79,
+    icon: "♻️",
+    tier: "성장 단계",
+    title: "자원순환 실천가",
+    stars: "⭐⭐⭐",
+    msg: `훌륭해요! 자원순환의 기본기를 갖추고 있어요.<br><strong>조금만 더</strong> 꾸준히 실천하면 제주 새활용 마스터가 될 수 있어요. 장바구니 챙기기, 올바른 분리배출 습관을 생활화해보세요. 한라산이 당신을 지켜보고 있어요! 🏔️`
+  },
+  {
+    min: 80, max: 100,
+    icon: "🏆",
+    tier: "마스터 달성",
+    title: "제주 새활용 마스터",
+    stars: "⭐⭐⭐⭐⭐",
+    msg: `완벽해요! 당신은 진정한 <strong>제주 새활용 마스터</strong>예요!<br>제주의 바람과 바다를 닮은 당신의 친환경 감각이 빛납니다. 이 지식을 주변에 전파해서 제주를 더 아름답게 지켜주세요. 제주 바다가 감사합니다! 🌊🌿`
+  }
+];
+
+let state = {};
+
+function startGame() {
+  state = {
+    current: 0,
+    score: 0,
+    log: [],
+    answered: false,
+    timer: null,
+    dotStates: new Array(QUESTIONS.length).fill('')
+  };
+  showScreen('game');
+  loadQuestion();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function loadQuestion() {
+  const q = QUESTIONS[state.current];
+  state.answered = false;
+
+  document.getElementById('q-progress').textContent = `상황 ${state.current + 1} / ${QUESTIONS.length}`;
+  document.getElementById('score-hud').textContent = state.score;
+  const sceneEmojiEl = document.getElementById('scene-emoji');
+  if (q.emoji.startsWith('IMG:')) {
+    sceneEmojiEl.innerHTML = `<img src="${q.emoji.slice(4)}" alt="${q.label}">`;
+  } else {
+    sceneEmojiEl.textContent = q.emoji;
+  }
+  document.getElementById('scene-label').textContent = q.label;
+  document.getElementById('q-text').textContent = q.text;
+
+  const letters = ['A','B','C','D'];
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.innerHTML = `<span class="opt-letter">${letters[i]}</span><span>${opt.text}</span>`;
+    btn.onclick = () => selectOption(i);
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('feedback-panel').className = 'feedback-panel';
+  document.getElementById('next-btn').className = 'next-btn';
+
+  updateDots();
+  startTimer();
+}
+
+function updateDots() {
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    const d = document.getElementById('dot-' + i);
+    d.className = 'dot';
+    if (i < state.current) {
+      d.classList.add(state.dotStates[i] === 'fail' ? 'fail' : 'done');
+    } else if (i === state.current) {
+      d.classList.add('current');
+    }
+  }
+}
+
+function startTimer() {
+  const bar = document.getElementById('timer-bar');
+  const num = document.getElementById('timer-num');
+  const circumference = 113.1;
+
+  bar.style.strokeDashoffset = '0';
+  bar.style.stroke = '#7EDDBB';
+  num.textContent = '8';
+
+  clearInterval(state.timer);
+  const startTime = Date.now();
+  const duration = 8000;
+
+  state.timer = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, duration - elapsed);
+    const secs = Math.ceil(remaining / 1000);
+    const frac = remaining / duration;
+
+    num.textContent = secs;
+    bar.style.strokeDashoffset = String(circumference * (1 - frac));
+    if (frac < 0.4) bar.style.stroke = '#FFD97D';
+    if (frac < 0.2) bar.style.stroke = '#F4827A';
+
+    if (remaining <= 0) {
+      clearInterval(state.timer);
+      if (!state.answered) handleTimeout();
+    }
+  }, 50);
+}
+
+function selectOption(idx) {
+  if (state.answered) return;
+  clearInterval(state.timer);
+  state.answered = true;
+
+  const q = QUESTIONS[state.current];
+  const btns = document.querySelectorAll('.opt-btn');
+  const isCorrect = q.correct.includes(idx);
+  const isNeutral = !isCorrect && q.neutral && q.neutral.includes(idx);
+
+  btns.forEach((btn, i) => {
+    btn.disabled = true;
+    if (q.correct.includes(i)) btn.classList.add('correct');
+    else if (i === idx) btn.classList.add('wrong');
+    else btn.classList.add('reveal');
+  });
+
+  const fp = document.getElementById('feedback-panel');
+  const fh = document.getElementById('feedback-head');
+  const fb = document.getElementById('feedback-body');
+
+  if (isCorrect) {
+    state.score += q.points;
+    state.dotStates[state.current] = 'done';
+    fp.className = 'feedback-panel good show';
+    fh.textContent = `✅ 정답! +${q.points}점`;
+    const goodText = (q.feedback_good_map && q.feedback_good_map[idx]) || q.feedback_good;
+    fb.textContent = goodText;
+    state.log.push({ text: q.label, got: true, pts: q.points });
+  } else if (isNeutral) {
+    state.dotStates[state.current] = 'fail';
+    fp.className = 'feedback-panel timeout show';
+    fh.textContent = `🤔 아깝네요! +0점`;
+    fb.textContent = q.feedback_neutral;
+    state.log.push({ text: q.label, got: false, pts: 0 });
+  } else {
+    state.dotStates[state.current] = 'fail';
+    fp.className = 'feedback-panel bad show';
+    fh.textContent = `❌ 아쉬워요! +0점`;
+    const badText = (q.feedback_bad_map && q.feedback_bad_map[idx]) || q.feedback_bad;
+    fb.textContent = badText;
+    state.log.push({ text: q.label, got: false, pts: 0 });
+  }
+
+  document.getElementById('score-hud').textContent = state.score;
+  updateDots();
+  showNextBtn();
+}
+
+function handleTimeout() {
+  if (state.answered) return;
+  state.answered = true;
+
+  const q = QUESTIONS[state.current];
+  document.querySelectorAll('.opt-btn').forEach((btn, i) => {
+    btn.disabled = true;
+    if (q.correct.includes(i)) btn.classList.add('correct');
+    else btn.classList.add('reveal');
+  });
+
+  state.dotStates[state.current] = 'fail';
+  document.getElementById('feedback-panel').className = 'feedback-panel timeout show';
+  document.getElementById('feedback-head').textContent = '⏱ 시간 초과!';
+  document.getElementById('feedback-body').textContent = q.feedback_timeout;
+  state.log.push({ text: q.label, got: false, pts: 0 });
+
+  updateDots();
+  showNextBtn();
+}
+
+function showNextBtn() {
+  const nb = document.getElementById('next-btn');
+  nb.className = 'next-btn show';
+  nb.textContent = state.current < QUESTIONS.length - 1 ? '다음 상황으로 →' : '결과 보기 🏁';
+}
+
+function nextQuestion() {
+  if (state.current < QUESTIONS.length - 1) {
+    state.current++;
+    loadQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function showResult() {
+  clearInterval(state.timer);
+  showScreen('result');
+
+  const s = state.score;
+  const ending = ENDINGS.find(e => s >= e.min && s <= e.max) || ENDINGS[2];
+
+  document.getElementById('result-icon').textContent = ending.icon;
+  document.getElementById('result-tier').textContent = ending.tier;
+  document.getElementById('result-title').textContent = ending.title;
+  document.getElementById('result-score').textContent = s;
+  document.getElementById('star-row').textContent = ending.stars;
+  document.getElementById('result-msg').innerHTML = ending.msg;
+
+  const logEl = document.getElementById('log-list');
+  logEl.innerHTML = '';
+  state.log.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = `log-item ${item.got ? 'got' : 'lost'}`;
+    div.innerHTML = `<span class="log-icon">${item.got ? '✅' : '❌'}</span>
+      <span style="flex:1">상황 ${i+1}: ${item.text}</span>
+      <span style="font-weight:600">${item.got ? '+'+item.pts : '0'}점</span>`;
+    logEl.appendChild(div);
+  });
+}
+
+function restartGame() {
+  showScreen('intro');
+}
+</script>
+</body>
+</html>
